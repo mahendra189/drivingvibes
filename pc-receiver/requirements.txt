@@ -1,0 +1,10 @@
+websockets
+# pyvjoy is only needed on Windows. 
+# On Mac/Linux, this file can be used but pyvjoy install might fail or be skipped.
+# We will list it commented out or with a note, but strict requirements.txt usually implies all must install.
+# Since the user might run "pip install -r requirements.txt", it is safer to include it but warn the user 
+# OR just include 'websockets' and let Windows users install pyvjoy manually as per python script output.
+# HOWEVER, the prompt asked for `requirements.txt` to include `pyvjoy`.
+# I will add it, but user on Mac might need to remove it or ignore error.
+# Actually, environment markers are best practice:
+pyvjoy; sys_platform == 'win32'
