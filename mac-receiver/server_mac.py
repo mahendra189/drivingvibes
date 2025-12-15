@@ -1,12 +1,15 @@
 import asyncio
 import websockets
 import json
-from pynput.keyboard import Key, Controller
+from pynput.keyboard import Key, Controller as KeyboardController
+from pynput.mouse import Controller as MouseController
 
-keyboard = Controller()
+keyboard = KeyboardController()
+mouse = MouseController()
 
 # Configuration
-DEAD_ZONE = 10  # Degrees of tilt required to register a key press
+DEAD_ZONE = 5  
+SENSITIVITY = 15 # Multiplier for mouse movement
 
 async def handler(websocket):
     print("Client connected")
@@ -14,46 +17,75 @@ async def handler(websocket):
         async for message in websocket:
             try:
                 data = json.loads(message)
+                # Old format check
                 if "roll" in data:
-                    process_roll(data["roll"])
+                    process_steer(data["roll"])
+                
+                # New format
+                if "type" in data:
+                    t = data["type"]
+                    val = data["val"]
+                    
+                    if t == "steer":
+                        process_steer(val)
+                    elif t == "throttle":
+                        process_throttle(val)
+                    elif t == "brake":
+                        process_brake(val)
+
             except json.JSONDecodeError:
                 pass
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error handling message: {e}")
     except websockets.exceptions.ConnectionClosed:
         print("Client disconnected")
-        # Release keys on disconnect to be safe
-        keyboard.release(Key.left)
-        keyboard.release(Key.right)
+        # Release keys on disconnect
+        keyboard.release(Key.up)
+        keyboard.release(Key.down)
 
-def process_roll(roll_degrees):
-    """
-    Map roll degrees to Left/Right arrow keys.
-    < -DEAD_ZONE  -> Turn Left
-    > +DEAD_ZONE  -> Turn Right
-    Between       -> Go Straight
-    """
-    
-    if roll_degrees < -DEAD_ZONE:
-        # Tilt Left
-        print(f"\rLeft ({roll_degrees:.1f}°)", end="    ")
-        keyboard.press(Key.left)
-        keyboard.release(Key.right)
-    elif roll_degrees > DEAD_ZONE:
-        # Tilt Right
-        print(f"\rRight ({roll_degrees:.1f}°)", end="    ")
-        keyboard.press(Key.right)
-        keyboard.release(Key.left)
+def process_throttle(pressed):
+    if pressed:
+        print("\rThrottle ON ", end="    ")
+        keyboard.press(Key.up)
     else:
-        # Center
-        print(f"\rCenter ({roll_degrees:.1f}°)", end="    ")
-        keyboard.release(Key.left)
-        keyboard.release(Key.right)
+        print("\rThrottle OFF", end="    ")
+        keyboard.release(Key.up)
+
+def process_brake(pressed):
+    if pressed:
+        print("\rBrake ON    ", end="    ")
+        keyboard.press(Key.down)
+    else:
+        print("\rBrake OFF   ", end="    ")
+        keyboard.release(Key.down)
+
+def process_steer(angle):
+    """
+    Move mouse based on tilt angle.
+    Angle is roughly -90 to 90.
+    """
+    if abs(angle) < DEAD_ZONE:
+        return
+
+    # Relative movement logic
+    # More tilt = faster cursor movement
+    # angle is in degrees.
+    
+    # Simple strategy: Move X by (angle * factor)
+    # If angle is 10, move 10 pixels right.
+    # If angle is -10, move 10 pixels left.
+    
+    delta_x = int(angle * 0.5) 
+    
+    # To make it usable, we might want non-linear curve or just simple proportional
+    mouse.move(delta_x, 0)
+    
+    # print(f"\rSteer: {angle:.1f}° -> dx: {delta_x}", end="    ")
 
 async def main():
     async with websockets.serve(handler, "0.0.0.0", 8080):
         print("Mac Receiver Started on 0.0.0.0:8080")
-        print("Emulating Left/Right arrow keys.")
+        print("Controls: Tilt -> Mouse X | Right Btn -> Up Arrow | Left Btn -> Down Arrow")
         print("Use Control+C to stop.")
         await asyncio.Future()  # run forever
 
