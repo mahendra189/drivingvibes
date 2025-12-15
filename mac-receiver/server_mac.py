@@ -32,6 +32,8 @@ async def handler(websocket):
                         process_throttle(val)
                     elif t == "brake":
                         process_brake(val)
+                    elif t == "reset":
+                        process_reset()
 
             except json.JSONDecodeError:
                 pass
@@ -42,6 +44,11 @@ async def handler(websocket):
         # Release keys on disconnect
         keyboard.release(Key.up)
         keyboard.release(Key.down)
+
+def process_reset():
+    print("\rRESET (r)     ", end="    ")
+    keyboard.press('r')
+    keyboard.release('r')
 
 def process_throttle(pressed):
     if pressed:
@@ -71,13 +78,9 @@ def process_steer(angle):
     # More tilt = faster cursor movement
     # angle is in degrees.
     
-    # Simple strategy: Move X by (angle * factor)
-    # If angle is 10, move 10 pixels right.
-    # If angle is -10, move 10 pixels left.
+    # Tuned Sensitivity: 2.0x factor
+    delta_x = int(angle * 1.0) 
     
-    delta_x = int(angle * 0.5) 
-    
-    # To make it usable, we might want non-linear curve or just simple proportional
     mouse.move(delta_x, 0)
     
     # print(f"\rSteer: {angle:.1f}° -> dx: {delta_x}", end="    ")

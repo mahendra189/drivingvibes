@@ -3,12 +3,14 @@ import { StyleSheet, Text, View, TextInput, TouchableOpacity, Animated, Alert, P
 import { DeviceMotion } from 'expo-sensors';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as Haptics from 'expo-haptics';
 
 export default function App() {
   const [ipAddress, setIpAddress] = useState('10.186.110.41');
   const [connected, setConnected] = useState(false);
   const [steeringAngle, setSteeringAngle] = useState(0);
   const ws = useRef(null);
+  const lastSentAngle = useRef(0);
 
   // Animation value for visual feedback
   const rotateAnim = useRef(new Animated.Value(0)).current;
@@ -16,10 +18,7 @@ export default function App() {
   useEffect(() => {
     // Request permissions or setup sensors
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT);
-    DeviceMotion.setUpdateInterval(50);
-    // The user asked "Send JSON data ... at 60ms intervals".
-    // setUpdateInterval takes ms.
-    DeviceMotion.setUpdateInterval(50);
+    DeviceMotion.setUpdateInterval(20); // Faster updates for responsiveness
 
     const subscription = DeviceMotion.addListener(data => {
       const { rotation } = data;
@@ -36,6 +35,7 @@ export default function App() {
         if (angle > 90) angle = 90;
         if (angle < -90) angle = -90;
 
+        // Visuals: Update always for smoothness
         setSteeringAngle(angle);
 
         // Update visual rotation
@@ -45,11 +45,17 @@ export default function App() {
           useNativeDriver: true,
         }).start();
 
-        // Send to WebSocket if connected
-        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-          // Send full object
-          const payload = JSON.stringify({ type: 'steer', val: angle });
-          ws.current.send(payload);
+        // Network: Throttle updates to reduce lag
+        // Round to 1 decimal place
+        const roundedAngle = Math.round(angle * 10) / 10;
+
+        // Only send if changed meaningfully (> 0.5 degrees)
+        if (Math.abs(roundedAngle - lastSentAngle.current) >= 0.5) {
+          if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            const payload = JSON.stringify({ type: 'steer', val: roundedAngle });
+            ws.current.send(payload);
+            lastSentAngle.current = roundedAngle;
+          }
         }
       }
     });
@@ -106,8 +112,20 @@ export default function App() {
   };
 
   const sendCommand = (type, val) => {
+    // Haptic feedback on press (if val is true/pressed)
+    if (val === true) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type, val }));
+    }
+  };
+
+  const sendReset = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: 'reset', val: true }));
     }
   };
 
@@ -161,6 +179,13 @@ export default function App() {
           <View style={styles.wheelSpoke} />
         </Animated.View>
         <Text style={styles.angleText}>Tilt: {steeringAngle.toFixed(1)}°</Text>
+
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={sendReset}
+        >
+          <Text style={styles.resetText}>RESET (R)</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Right: Throttle */}
@@ -278,4 +303,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
+  resetButton: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#FF9800',
+    borderRadius: 5,
+  },
+  resetText: {
+    color: '#000',
+    fontWeight: 'bold',
+  }
 });
