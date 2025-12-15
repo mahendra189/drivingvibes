@@ -34,6 +34,16 @@ async def handler(websocket):
                         process_brake(val)
                     elif t == "reset":
                         process_reset()
+                    
+                    # New Momentary/Toggle Controls
+                    elif t == "headlight":
+                        process_key('h', val)
+                    elif t == "handbrake":
+                        process_key('b', val)
+                    elif t == "autopilot":
+                        process_key('f', val)
+                    elif t == "cruise":
+                        process_key('j', val)
 
             except json.JSONDecodeError:
                 pass
@@ -44,6 +54,17 @@ async def handler(websocket):
         # Release keys on disconnect
         keyboard.release(Key.up)
         keyboard.release(Key.down)
+
+def process_key(key_char, pressed):
+    """Generic handler for simple key presses"""
+    if pressed:
+        print(f"\rKey '{key_char.upper()}' ON   ", end="    ")
+        keyboard.press(key_char)
+    else:
+        # Check if we should release immediately or if it's a toggle logic
+        # For now, map 1:1 with button press
+        print(f"\rKey '{key_char.upper()}' OFF  ", end="    ")
+        keyboard.release(key_char)
 
 def process_reset():
     print("\rRESET (r)     ", end="    ")
@@ -74,14 +95,41 @@ def process_steer(angle):
     if abs(angle) < DEAD_ZONE:
         return
 
-    # Relative movement logic
-    # More tilt = faster cursor movement
-    # angle is in degrees.
+# Screen Width Configuration (Points)
+# Common specific values: 1280, 1440, 1470, 1728
+SCREEN_WIDTH = 1440 
+MAX_ANGLE = 45 # Degrees for full lock
+
+def process_steer(angle):
+    """
+    Absolute Steering: Map Tilt Angle to Screen Position.
+    -MAX_ANGLE -> Left Edge (0)
+    0          -> Center (Width/2)
+    +MAX_ANGLE -> Right Edge (Width)
+    """
     
-    # Tuned Sensitivity: 2.0x factor
-    delta_x = int(angle * 1.0) 
+    # Clamp angle
+    if angle > MAX_ANGLE: angle = MAX_ANGLE
+    if angle < -MAX_ANGLE: angle = -MAX_ANGLE
     
-    mouse.move(delta_x, 0)
+    # Calculate percentage (-1.0 to 1.0)
+    ratio = angle / MAX_ANGLE 
+    
+    # Center X
+    center_x = SCREEN_WIDTH / 2
+    
+    # Calculate Target X
+    # If ratio is -1 (Left), target is 0
+    # If ratio is 0 (Center), target is center_x
+    # If ratio is 1 (Right), target is SCREEN_WIDTH
+    
+    # Formula: center_x + (ratio * center_x)
+    target_x = center_x + (ratio * center_x)
+    
+    # Get current position to preserve Y
+    current_pos = mouse.position
+    
+    mouse.position = (int(target_x), current_pos[1])
     
     # print(f"\rSteer: {angle:.1f}° -> dx: {delta_x}", end="    ")
 

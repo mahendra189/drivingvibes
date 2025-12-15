@@ -4,6 +4,8 @@ import { DeviceMotion } from 'expo-sensors';
 import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function App() {
   const [ipAddress, setIpAddress] = useState('10.186.110.41');
@@ -96,7 +98,7 @@ export default function App() {
       ws.current.onclose = () => {
         console.log("Disconnected");
         setConnected(false);
-        Alert.alert("Disconnected", "Connection closed.");
+        // Alert.alert("Disconnected", "Connection closed.");
       };
 
       ws.current.onerror = (e) => {
@@ -116,7 +118,6 @@ export default function App() {
     if (val === true) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type, val }));
     }
@@ -136,181 +137,249 @@ export default function App() {
   });
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={['#0F2027', '#203A43', '#2C5364']} style={styles.container}>
       <StatusBar hidden={true} />
 
-      {/* Left: Brake */}
+      {/* --- LEFT SECTION --- */}
       <View style={styles.sidePanel}>
+        {/* Brake Pedal (Big) */}
         <TouchableOpacity
-          style={[styles.controlButton, styles.brakeBtn]}
+          style={[styles.pedal, styles.brakePedal]}
           onPressIn={() => sendCommand('brake', true)}
           onPressOut={() => sendCommand('brake', false)}
+          activeOpacity={0.7}
         >
-          <Text style={styles.controlText}>BRAKE</Text>
+          <Text style={styles.pedalText}>BRAKE</Text>
         </TouchableOpacity>
+
+        {/* Action Buttons Row */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => sendCommand('headlight', true)}>
+            <MaterialCommunityIcons name="car-light-high" size={32} color="#00e5ff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.iconButton} onPress={() => sendCommand('autopilot', true)}>
+            <MaterialCommunityIcons name="robot" size={32} color="#00e5ff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Center: Connect & Visual */}
+      {/* --- CENTER DASHBOARD --- */}
       <View style={styles.centerPanel}>
-        <Text style={styles.title}>SteerByPhone</Text>
+        <View style={styles.headerRow}>
+          <View style={[styles.statusPill, connected ? styles.connectedPill : styles.disconnectedPill]}>
+            <View style={[styles.statusDot, { backgroundColor: connected ? '#00FF00' : '#FF0000' }]} />
+            <Text style={styles.statusText}>{connected ? "ONLINE" : "OFFLINE"}</Text>
+          </View>
 
-        {!connected && (
-          <View style={styles.inputContainer}>
+          {!connected && (
             <TextInput
-              style={styles.input}
+              style={styles.miniInput}
               value={ipAddress}
               onChangeText={setIpAddress}
-              placeholder="IP Address"
+              placeholder="IP"
               placeholderTextColor="#888"
               keyboardType="numeric"
             />
-          </View>
-        )}
+          )}
 
-        <TouchableOpacity
-          style={[styles.connectButton, connected && styles.disconnectButton]}
-          onPress={connectToPC}
-        >
-          <Text style={styles.buttonText}>{connected ? "DISCONNECT" : "CONNECT"}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.miniBtn} onPress={connectToPC}>
+            <MaterialCommunityIcons name={connected ? "lan-disconnect" : "lan-connect"} size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-        <Animated.View style={[styles.steeringWheel, { transform: [{ rotate: rotateStr }] }]}>
-          <View style={styles.wheelRim} />
-          <View style={styles.wheelSpoke} />
-        </Animated.View>
-        <Text style={styles.angleText}>Tilt: {steeringAngle.toFixed(1)}°</Text>
+        <View style={styles.dashDisplay}>
+          <Animated.View style={[styles.steeringGraphic, { transform: [{ rotate: rotateStr }] }]}>
+            <MaterialCommunityIcons name="steering" size={180} color="rgba(255,255,255,0.15)" />
+            <View style={styles.centerMarker} />
+          </Animated.View>
 
-        <TouchableOpacity
-          style={styles.resetButton}
-          onPress={sendReset}
-        >
-          <Text style={styles.resetText}>RESET (R)</Text>
-        </TouchableOpacity>
+          <Text style={styles.angleText}>{steeringAngle.toFixed(0)}°</Text>
+
+          <TouchableOpacity style={styles.resetButton} onPress={sendReset}>
+            <Text style={styles.resetText}>RESET CAR (R)</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Right: Throttle */}
+      {/* --- RIGHT SECTION --- */}
       <View style={styles.sidePanel}>
+        {/* Throttle Pedal (Big) */}
         <TouchableOpacity
-          style={[styles.controlButton, styles.throttleBtn]}
+          style={[styles.pedal, styles.throttlePedal]}
           onPressIn={() => sendCommand('throttle', true)}
           onPressOut={() => sendCommand('throttle', false)}
+          activeOpacity={0.7}
         >
-          <Text style={styles.controlText}>GO</Text>
+          <Text style={styles.pedalText}>GO</Text>
         </TouchableOpacity>
+
+        {/* Action Buttons Row */}
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => sendCommand('handbrake', true)}>
+            <MaterialCommunityIcons name="car-brake-parking" size={32} color="#ff3d00" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.iconButton} onPress={() => sendCommand('cruise', true)}>
+            <MaterialCommunityIcons name="speedometer" size={32} color="#ff3d00" />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#222',
-    // Landscape alignment
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-  },
-  centerPanel: {
-    flex: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 10,
   },
   sidePanel: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     height: '100%',
+    justifyContent: 'space-between',
+    paddingVertical: 20,
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 20,
+  centerPanel: {
+    flex: 2,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 10,
   },
-  inputContainer: {
-    width: '80%',
-    marginBottom: 10,
-  },
-  input: {
-    backgroundColor: '#333',
-    color: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  connectButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 10,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  disconnectButton: {
-    backgroundColor: '#F44336',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  controlButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+
+  // Pedals
+  pedal: {
+    width: 120,
+    height: 160,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
-  throttleBtn: {
-    backgroundColor: 'rgba(0, 255, 0, 0.3)',
+  brakePedal: {
+    backgroundColor: 'rgba(255, 60, 0, 0.25)', // Red tint
+    borderTopWidth: 6,
+    borderTopColor: 'rgba(255, 60, 0, 0.8)',
   },
-  brakeBtn: {
-    backgroundColor: 'rgba(255, 0, 0, 0.3)',
+  throttlePedal: {
+    backgroundColor: 'rgba(0, 255, 128, 0.25)', // Green tint
+    borderTopWidth: 6,
+    borderTopColor: 'rgba(0, 255, 128, 0.8)',
   },
-  controlText: {
+  pedalText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
-  steeringWheel: {
-    width: 150,
-    height: 150,
+
+  // Icon Buttons
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 20,
+  },
+  iconButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+
+  // Header & Status
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+    padding: 5,
   },
-  wheelRim: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    borderWidth: 10,
-    borderColor: '#00BCD4',
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    marginRight: 10,
   },
-  wheelSpoke: {
-    position: 'absolute',
-    width: 130,
-    height: 10,
-    backgroundColor: '#00BCD4',
+  connectedPill: { backgroundColor: 'rgba(0, 255, 0, 0.1)' },
+  disconnectedPill: { backgroundColor: 'rgba(255, 0, 0, 0.1)' },
+  statusDot: {
+    width: 8, height: 8, borderRadius: 4, marginRight: 6,
+  },
+  statusText: {
+    color: '#fff', fontSize: 10, fontWeight: 'bold', letterSpacing: 1,
+  },
+  miniInput: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: '#fff',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
     borderRadius: 5,
+    width: 100,
+    textAlign: 'center',
+    fontSize: 12,
+    marginRight: 8,
+  },
+  miniBtn: {
+    padding: 5,
+  },
+
+  // Dashboard
+  dashDisplay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  steeringGraphic: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerMarker: {
+    position: 'absolute',
+    top: -10,
+    width: 4,
+    height: 20,
+    backgroundColor: '#00e5ff',
   },
   angleText: {
-    color: '#aaa',
-    fontSize: 16,
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    position: 'absolute',
+    fontSize: 40,
+    fontWeight: '100',
+    color: '#fff',
+    opacity: 0.8,
   },
   resetButton: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#FF9800',
-    borderRadius: 5,
+    marginTop: 40,
+    backgroundColor: 'rgba(255, 165, 0, 0.2)',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'orange',
   },
   resetText: {
-    color: '#000',
+    color: 'orange',
     fontWeight: 'bold',
-  }
+    fontSize: 12,
+  },
 });
