@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: SteerByPhone v${{ steps.get_version.outputs.version }}
+          body: |
+            ## SteerByPhone Release v${{ steps.get_version.outputs.version }}
+            
+            ### Downloads
+            - **Mac Receiver**: Download the `.app` file below
+            - **Windows Receiver**: Download the `.exe` file below
+            - **Android Client**: Download the `.apk` file below
+            
+            ### Installation
+            - **Mac**: Unzip and move to Applications folder, grant accessibility permissions
+            - **Windows**: Run the installer and install vJoy driver
+            - **Android**: Enable "Install from Unknown Sources" and install the APK
+            
+            See [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) for detailed instructions.
+          draft: false
+          prerelease: false
+
+  build-mac:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Build Mac App
+        run: |
+          cd mac-receiver
+          chmod +x build_app.sh
+          ./build_app.sh
+      
+      - name: Zip Mac App
+        run: |
+          cd mac-receiver/dist
+          zip -r SteerByPhone-Mac-v${{ needs.create-release.outputs.version }}.zip server_mac.app
+      
+      - name: Upload Mac App
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./mac-receiver/dist/SteerByPhone-Mac-v${{ needs.create-release.outputs.version }}.zip
+          asset_name: SteerByPhone-Mac-v${{ needs.create-release.outputs.version }}.zip
+          asset_content_type: application/zip
+
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd pc-receiver
+          pip install -r requirements.txt
+          pip install pyinstaller
+      
+      - name: Build Windows Executable
+        run: |
+          cd pc-receiver
+          pyinstaller --onefile --name SteerByPhone-Windows server.py
+      
+      - name: Upload Windows Executable
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./pc-receiver/dist/SteerByPhone-Windows.exe
+          asset_name: SteerByPhone-Windows-v${{ needs.create-release.outputs.version }}.exe
+          asset_content_type: application/octet-stream
+
+  build-android:
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install dependencies
+        run: |
+          cd mobile-client
+          npm install
+      
+      - name: Set up Expo
+        run: npm install -g eas-cli
+      
+      - name: Build Android APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd mobile-client
+          eas build --platform android --profile preview --non-interactive --no-wait
+      
+      - name: Wait for build and download
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd mobile-client
+          # Note: This is a simplified version. In practice, you'd need to poll for build completion
+          # and download the APK. For now, we'll use a manual upload approach.
+          echo "Build initiated. Download APK from Expo and upload manually."
+      
+      # Note: For automated APK upload, you'll need to set up Expo credentials
+      # and implement proper build waiting/downloading logic

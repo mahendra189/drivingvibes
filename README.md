@@ -2,10 +2,37 @@
 
 Turn your smartphone into a steering wheel for PC racing games (like Live For Speed) using the accelerometer/gyroscope.
 
-## Prerequisites
+## Quick Start
+
+### For End Users (Pre-built Apps)
+
+**Android (APK)**:
+1. Download the APK file
+2. Enable "Install from Unknown Sources" in Android settings
+3. Install and open the app
+4. Enter your receiver's IP address and connect
+
+**macOS (Application)**:
+1. Download and unzip the application
+2. Move to Applications folder
+3. Right-click → Open (first time only)
+4. Grant Accessibility permissions when prompted
+5. The server will start automatically
+
+### For Developers (Build from Source)
+
+See [BUILD_GUIDE.md](BUILD_GUIDE.md) for detailed instructions on building:
+- Android APK from source
+- macOS application bundle from source
+
+---
+
+## Development Setup
+
+### Prerequisites
 
 - **PC**: Python 3.x installed.
-- **Smartphone**: Expo Go app installed (available on iOS App Store and Google Play Store).
+- **Smartphone**: Expo Go app installed (available on iOS App Store and Google Play Store) OR use the built APK.
 - **Network**: PC and Smartphone must be on the same Wi-Fi network.
 
 ## Setup Guide
@@ -26,7 +53,7 @@ The PC receiver acts as a virtual joystick (vJoy).
     cd pc-receiver
     # Create virtual environment (optional but recommended)
     python -m venv venv
-    .\venv\Scripts\activate
+    .\\venv\\Scripts\\activate
     
     # Install dependencies
     pip install -r requirements.txt
@@ -45,7 +72,13 @@ The PC receiver acts as a virtual joystick (vJoy).
 
 ### 2. Mac Receiver (macOS)
 
-On macOS, the app simulates **Arrow Keys** (Left/Right) since virtual joystick support is limited.
+**Option A: Use Pre-built Application** (Recommended)
+- Download `server_mac.app` from releases
+- Follow "For End Users" instructions above
+
+**Option B: Run from Source** (Development)
+
+On macOS, the app simulates **Arrow Keys** (Left/Right) and **Mouse Movement** for steering.
 
 1.  **Setup**:
     Open a terminal in the `mac-receiver` directory.
@@ -68,6 +101,12 @@ On macOS, the app simulates **Arrow Keys** (Left/Right) since virtual joystick s
     - Verify your IP address (usually found in System Settings -> Wi-Fi -> Details).
 
 ### 3. Mobile Client (iOS / Android)
+
+**Option A: Use Pre-built APK** (Android Only - Recommended)
+- Download and install the APK
+- Open the app and connect to your receiver
+
+**Option B: Run with Expo Go** (Development - iOS & Android)
 
 The mobile client sends sensor data to the PC.
 
@@ -96,6 +135,13 @@ The mobile client sends sensor data to the PC.
     - Status should change to "Connected".
     - Rotate your phone to steer!
 
+## Building Distributable Apps
+
+See [BUILD_GUIDE.md](BUILD_GUIDE.md) for complete instructions on:
+- Building Android APK
+- Building macOS Application Bundle
+- Distribution and installation
+
 ## Troubleshooting
 
 - **"Connection failed"**:
@@ -107,8 +153,13 @@ The mobile client sends sensor data to the PC.
 - **Steering not working**:
     - Verify vJoy is installed and enabled in "Game Controllers" (search in Windows Start menu).
     - Open "Setup USB Game Controllers" -> Properties -> Test to see if the bars move when you tilt the phone.
+- **macOS App won't open**:
+    - Right-click the app and select "Open" (don't double-click)
+    - Grant Accessibility permissions in System Settings
 
 ## Development
 
 - **Mac/Linux**: The server runs in "Development Mode" (prints values to console) since vJoy is Windows-only.
 - **Mobile**: Modify `App.js` to change sensor update intervals or UI.
+- **Building**: See [BUILD_GUIDE.md](BUILD_GUIDE.md) for creating distributable versions.
+

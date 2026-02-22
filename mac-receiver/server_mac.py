@@ -133,15 +133,41 @@ def process_steer(angle):
     
     # print(f"\rSteer: {angle:.1f}° -> dx: {delta_x}", end="    ")
 
+def get_local_ip():
+    """Get the local IP address of this machine"""
+    import socket
+    try:
+        # Create a socket to determine the local IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Connect to a public DNS server (doesn't actually send data)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return local_ip
+    except Exception:
+        return "Unable to detect"
+
 async def main():
+    local_ip = get_local_ip()
+    
     async with websockets.serve(handler, "0.0.0.0", 8080):
-        print("Mac Receiver Started on 0.0.0.0:8080")
-        print("Controls: Tilt -> Mouse X | Right Btn -> Up Arrow | Left Btn -> Down Arrow")
-        print("Use Control+C to stop.")
+        print("=" * 60)
+        print("🚗 SteerByPhone Mac Receiver Started")
+        print("=" * 60)
+        print(f"\n📱 Enter this IP address in your phone app:")
+        print(f"   {local_ip}:8080")
+        print(f"\n🎮 Controls:")
+        print(f"   • Tilt phone → Mouse X-axis (steering)")
+        print(f"   • Right button → Up Arrow (throttle)")
+        print(f"   • Left button → Down Arrow (brake)")
+        print(f"\n⚙️  Server listening on: 0.0.0.0:8080")
+        print(f"   Press Control+C to stop.\n")
+        print("=" * 60)
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nStopped.")
+        print("\n\n🛑 Server stopped.")
+
